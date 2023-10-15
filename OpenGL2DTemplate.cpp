@@ -20,7 +20,6 @@ void KeyUp(unsigned char key, int x, int y);
 void Mouse(int button, int state, int x, int y);
 void UpdateGameTime(int value);
 void UpdateFrame(int value);
-void GenerateSpeedPowerup();
 void Display();
 
 struct Ring {
@@ -62,11 +61,6 @@ int playerY;
 float playerAngle;
 int playerSpeed;
 bool keys[256];
-int frameCount = 0;
-int nextSpeedPowerupFrame = 0;
-int nextScorePowerupFrame = 0;
-int minFrames = 1000;
-int maxFrames = 2000;
 
 void main(int argc, char** argr) {
     glutInit(&argc, argr);
@@ -359,14 +353,14 @@ void Mouse(int button, int state, int x, int y) {
 }
 void UpdateGameTime(int value) {
     if (remainingTime <= 0) {
-        return;
+        exit(0);
     }
 
     remainingTime--;
 
     glutPostRedisplay();
 
-    glutTimerFunc(1000, UpdateGameTime, value + 1);
+    glutTimerFunc(1000, UpdateGameTime, value);
 }
 void UpdateFrame(int value) {
     if (keys['w'] || keys['W']) {
@@ -386,30 +380,9 @@ void UpdateFrame(int value) {
         playerAngle = 270;
     }
 
-    frameCount++;
-    if (frameCount >= nextSpeedPowerupFrame) {
-        GenerateSpeedPowerup();
-        nextSpeedPowerupFrame = frameCount + randomRange(minFrames, maxFrames);
-    }
-
     glutPostRedisplay();
 
     glutTimerFunc(1000 / 240, UpdateFrame, value + 1); // 240 FPS
-}
-void GenerateSpeedPowerup() {
-    int x = randomRange(120, 700);
-    int y = randomRange(120, 700);
-
-    // Add a new speed powerup to your array of speed powerups
-    SpeedPowerup* newSpeedPowerups = new SpeedPowerup[numberOfSpeedPowerups + 1];
-    for (int i = 0; i < numberOfSpeedPowerups; i++) {
-        newSpeedPowerups[i] = speedPowerups[i];
-    }
-    newSpeedPowerups[numberOfSpeedPowerups].x = x;
-    newSpeedPowerups[numberOfSpeedPowerups].y = y;
-    delete[] speedPowerups;
-    speedPowerups = newSpeedPowerups;
-    numberOfSpeedPowerups++;
 }
 void Display() {
     glClear(GL_COLOR_BUFFER_BIT);
