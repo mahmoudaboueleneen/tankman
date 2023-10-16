@@ -19,7 +19,11 @@ void Key(unsigned char key, int x, int y);
 void KeyUp(unsigned char key, int x, int y);
 void Mouse(int button, int state, int x, int y);
 void UpdateGameTime(int value);
-void UpdateFrame(int value);
+void HandlePlayerMovement(int value);
+bool checkCollision(int x1, int y1, int r1, int x2, int y2, int r2);
+void EndInvincibility(int value);
+void EndSpeedBoost(int value);
+void EndScoreBoost(int value);
 void Display();
 
 struct Ring {
@@ -61,6 +65,13 @@ int playerY;
 float playerAngle;
 int playerSpeed;
 bool keys[256];
+int boundaryX;
+int boundaryY;
+int boundaryW;
+int boundaryH;
+bool isPlayerInvincible;
+bool isSpeedBoostActive;
+bool isScoreBoostActive;
 
 void main(int argc, char** argr) {
     glutInit(&argc, argr);
@@ -77,18 +88,27 @@ void main(int argc, char** argr) {
     glutMouseFunc(Mouse);
 
     glutTimerFunc(1000, UpdateGameTime, 0);
-    glutTimerFunc(0, UpdateFrame, 0);
+    glutTimerFunc(0, HandlePlayerMovement, 0);
 
     glutInitDisplayMode(GLUT_SINGLE | GLUT_RGB);
     glClearColor(0, 0, 0, 0);
     gluOrtho2D(0, 800, 0, 800);
+
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+    // Initialize game boundary
+    boundaryX = 50;
+    boundaryY = 50;
+    boundaryW = 700; 
+    boundaryH = 700;
 
     // Initialize player settings
     remainingTime = 30;
     remainingLives = 5;
     score = 0;
 
-    // Initialize environment settings
+    // Initialize environment 
     numberOfRings = 10;
     numberOfObstacles = 30;
     numberOfSpeedPowerups = 1;
@@ -97,34 +117,34 @@ void main(int argc, char** argr) {
     // Initialize rings
     rings = new Ring[numberOfRings];
     for (int i = 0; i < numberOfRings; i++) {
-        rings[i].x = randomRange(100, 740);
-        rings[i].y = randomRange(100, 740);
+        rings[i].x = randomRange(boundaryX + 50, boundaryH + 30);
+        rings[i].y = randomRange(boundaryX + 50, boundaryH + 30);
     }
 
     // Initialize obstacles
     obstacles = new Obstacle[numberOfObstacles];
     for (int i = 0; i < numberOfObstacles; i++) {
-        obstacles[i].x = randomRange(120, 700);
-        obstacles[i].y = randomRange(120, 700);
+        obstacles[i].x = randomRange(boundaryX + 70, boundaryH + 0);
+        obstacles[i].y = randomRange(boundaryX + 70, boundaryH + 0);
     }
 
     // Initialize speed powerups
     speedPowerups = new SpeedPowerup[numberOfSpeedPowerups];
     for (int i = 0; i < numberOfSpeedPowerups; i++) {
-        speedPowerups[i].x = randomRange(120, 700);
-        speedPowerups[i].y = randomRange(120, 700);
+        speedPowerups[i].x = randomRange(boundaryX + 70, boundaryH + 0);
+        speedPowerups[i].y = randomRange(boundaryX + 70, boundaryH + 0);
     }
 
     // Initialize score powerups
     scorePowerups = new ScorePowerup[numberOfScorePowerups];
     for (int i = 0; i < numberOfScorePowerups; i++) {
-        scorePowerups[i].x = randomRange(120, 700);
-        scorePowerups[i].y = randomRange(120, 700);
+        scorePowerups[i].x = randomRange(boundaryX + 70, boundaryH + 0);
+        scorePowerups[i].y = randomRange(boundaryX + 70, boundaryH + 0);
     }
 
     // Initialize goal
-    goalX = randomRange(120, 700);
-    goalY = randomRange(120, 700);
+    goalX = randomRange(boundaryX + 70, boundaryY + 0);
+    goalY = randomRange(boundaryX + 70, boundaryY + 0);
 
     // Initialize player
     playerX = 400;
@@ -249,7 +269,14 @@ void drawPlayer(int x, int y, float angle) {
     glPushMatrix(); 
     glTranslatef(x, y, 0);
     glRotatef(angle, 0, 0, 1);
-    glColor3f(1, 1, 1);
+    
+    if (isPlayerInvincible) {
+        glColor4f(1.0f, 1.0f, 1.0f, 0.5f);
+    }
+    else {
+        glColor3f(1.0f, 1.0f, 1.0f);
+    }
+
     glLineWidth(5);
 
     // Tank body
@@ -362,27 +389,109 @@ void UpdateGameTime(int value) {
 
     glutTimerFunc(1000, UpdateGameTime, value);
 }
-void UpdateFrame(int value) {
+void HandlePlayerMovement(int value) {
+    int oldPlayerX = playerX;
+    int oldPlayerY = playerY;
+
     if (keys['w'] || keys['W']) {
-        playerY += playerSpeed;
+        playerY += isSpeedBoostActive ? 2 * playerSpeed : playerSpeed;
         playerAngle = 0;
     }
     if (keys['s'] || keys['S']) {
-        playerY -= playerSpeed;
+        playerY -= isSpeedBoostActive ? 2 * playerSpeed : playerSpeed;
         playerAngle = 180;
     }
     if (keys['a'] || keys['A']) {
-        playerX -= playerSpeed;
+        playerX -= isSpeedBoostActive ? 2 * playerSpeed : playerSpeed;
         playerAngle = 90;
     }
     if (keys['d'] || keys['D']) {
-        playerX += playerSpeed;
+        playerX += isSpeedBoostActive ? 2 * playerSpeed : playerSpeed;
         playerAngle = 270;
+    }
+
+    // Check for collision with rings
+    for (int i = 0; i < numberOfRings; i++) {
+        if (checkCollision(playerX, playerY, STANDARD_RADIUS, rings[i].x, rings[i].y, STANDARD_RADIUS)) {
+            score += isScoreBoostActive ? 200 : 100;
+
+            // Remove the ring by swapping it with the last one and decreasing the count
+            rings[i] = rings[numberOfRings - 1];
+            numberOfRings--;
+            break;
+        }
+    }
+
+    // Check for collision speed powerups
+    for (int i = 0; i < numberOfSpeedPowerups; i++) {
+        if (checkCollision(playerX, playerY, STANDARD_RADIUS, speedPowerups[i].x, speedPowerups[i].y, STANDARD_RADIUS)) {
+            isSpeedBoostActive = true;
+            glutTimerFunc(5000, EndSpeedBoost, 0);
+            speedPowerups[i] = speedPowerups[numberOfSpeedPowerups - 1];
+            numberOfSpeedPowerups--;
+            break;
+        }
+    }
+
+    // Check for collision with score powerups
+    for (int i = 0; i < numberOfScorePowerups; i++) {
+        if (checkCollision(playerX, playerY, STANDARD_RADIUS, scorePowerups[i].x, scorePowerups[i].y, STANDARD_RADIUS)) {
+            isScoreBoostActive = true;
+            glutTimerFunc(5000, EndScoreBoost, 0);
+            scorePowerups[i] = scorePowerups[numberOfScorePowerups - 1];
+            numberOfScorePowerups--;
+            break;
+        }
+    }
+
+    // Check for collision with obstacles
+    for (int i = 0; i < numberOfObstacles; i++) {
+        if (checkCollision(playerX, playerY, STANDARD_RADIUS, obstacles[i].x, obstacles[i].y, STANDARD_RADIUS)) {
+            if (!isPlayerInvincible) {
+                remainingLives--;
+                isPlayerInvincible = true;
+                glutTimerFunc(1000, EndInvincibility, 0);
+            }
+            playerX = oldPlayerX;
+            playerY = oldPlayerY;
+            break;
+        }
+    }
+
+    // Check for collision with game boundary
+    if (playerX - STANDARD_RADIUS < boundaryX ||
+        playerX + STANDARD_RADIUS > boundaryX + boundaryW ||
+        playerY - STANDARD_RADIUS < boundaryY ||
+        playerY + STANDARD_RADIUS > boundaryY + boundaryH) {
+        if (!isPlayerInvincible) {
+            remainingLives--;
+            isPlayerInvincible = true;
+            glutTimerFunc(1000, EndInvincibility, 0);
+        }
+        
+        playerX = oldPlayerX;
+        playerY = oldPlayerY;
     }
 
     glutPostRedisplay();
 
-    glutTimerFunc(1000 / 240, UpdateFrame, value + 1); // 240 FPS
+    // Handle player movement once every 1/240 seconds, or 240 times per second. (240 FPS)
+    glutTimerFunc(1000 / 240, HandlePlayerMovement, value + 1); 
+}
+bool checkCollision(int x1, int y1, int r1, int x2, int y2, int r2) {
+    int dx = x2 - x1;
+    int dy = y2 - y1;
+    int distance = sqrt(dx * dx + dy * dy);
+    return distance < r1 + r2;
+}
+void EndInvincibility(int value) {
+    isPlayerInvincible = false;
+}
+void EndSpeedBoost(int value) {
+    isSpeedBoostActive = false;
+}
+void EndScoreBoost(int value) {
+    isScoreBoostActive = false;
 }
 void Display() {
     glClear(GL_COLOR_BUFFER_BIT);
@@ -410,7 +519,7 @@ void Display() {
     drawHealthBar(remainingLives);
 
     // Boundary
-    drawBoundary(50, 50, 700, 700);
+    drawBoundary(boundaryX, boundaryY, boundaryW, boundaryW);
 
     // Rings
     for (int i = 0; i < numberOfRings; i++) {
