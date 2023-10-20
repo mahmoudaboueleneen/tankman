@@ -5,7 +5,6 @@
 #include <sstream>
 #include <set>
 #include <utility>
-#include <irrKlang/irrKlang.h> using namespace irrklang;
 
 std::pair<int, int> randomRange(int min, int max);
 void drawRect(int x, int y, int w, int h);
@@ -28,6 +27,8 @@ bool checkCollision(int x1, int y1, int r1, int x2, int y2, int r2);
 void EndInvincibility(int value);
 void EndSpeedBoost(int value);
 void EndScoreBoost(int value);
+void drawTime();
+void drawScore();
 void DisplayWinningScreen();
 void DisplayLosingScreen();
 void Display();
@@ -600,14 +601,7 @@ void AnimBackground(int value) {
     glutPostRedisplay();
     glutTimerFunc(1000 / 60, AnimBackground, 0);
 }
-void Display() {
-    glClear(GL_COLOR_BUFFER_BIT);
-
-    // Background (animated with shades of dark blue to black)
-    float black = 0.1f * (sin(backgroundAnimState) + 1.0f);
-    glClearColor(black, black, black, 1.0f);
-
-    // Timer
+void drawTime() {
     glColor3f(1, 1, 1);
     glRasterPos2i(650, 770);
     std::ostringstream oss;
@@ -616,8 +610,8 @@ void Display() {
     for (char c : timeString) {
         glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18, c);
     }
-
-    // Score
+}
+void drawScore() {
     if (isScoreBoostActive) {
         glColor3f(1, 0, 0); // Red
         glRasterPos2i(370, 770);
@@ -633,6 +627,19 @@ void Display() {
     for (char c : scoreString) {
         glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18, c);
     }
+}
+void Display() {
+    glClear(GL_COLOR_BUFFER_BIT);
+
+    // Background (animated with shades of dark blue to black)
+    float black = 0.1f * (sin(backgroundAnimState) + 1.0f);
+    glClearColor(black, black, black, 1.0f);
+
+    // Time
+    drawTime();
+
+    // Score
+    drawScore();
 
     // Health Bar
     drawHealthBar(remainingLives);
