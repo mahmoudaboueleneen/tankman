@@ -3,8 +3,11 @@
 #include <random>
 #include <glut.h>
 #include <sstream>
+#include <set>
+#include <utility>
+#include <irrKlang/irrKlang.h> using namespace irrklang;
 
-int randomRange(int min, int max);
+std::pair<int, int> randomRange(int min, int max);
 void drawRect(int x, int y, int w, int h);
 void drawCircle(int x, int y, float r);
 void drawHealthBar(int lives);
@@ -18,12 +21,15 @@ void drawGoal(int x, int y, float r);
 void Key(unsigned char key, int x, int y);
 void KeyUp(unsigned char key, int x, int y);
 void Mouse(int button, int state, int x, int y);
+void AnimBackground(int value);
 void UpdateGameTime(int value);
 void HandlePlayerMovement(int value);
 bool checkCollision(int x1, int y1, int r1, int x2, int y2, int r2);
 void EndInvincibility(int value);
 void EndSpeedBoost(int value);
 void EndScoreBoost(int value);
+void DisplayWinningScreen();
+void DisplayLosingScreen();
 void Display();
 
 struct Ring {
@@ -51,6 +57,7 @@ Obstacle* obstacles;
 SpeedPowerup* speedPowerups;
 ScorePowerup* scorePowerups;
 float STANDARD_RADIUS = 15;
+std::set<std::pair<int, int>> usedPositions;
 int remainingTime;
 int remainingLives;
 int score;
@@ -72,6 +79,8 @@ int boundaryH;
 bool isPlayerInvincible;
 bool isSpeedBoostActive;
 bool isScoreBoostActive;
+float backgroundAnimState;
+bool isGameOver;
 
 void main(int argc, char** argr) {
     glutInit(&argc, argr);
@@ -81,17 +90,17 @@ void main(int argc, char** argr) {
     glutInitWindowSize(800, 800);
     glutInitWindowPosition(0, 0);
 
+    glutInitDisplayMode(GLUT_SINGLE | GLUT_RGB);
     glutCreateWindow("Game");
     glutDisplayFunc(Display);
     glutKeyboardFunc(Key);
     glutKeyboardUpFunc(KeyUp);
     glutMouseFunc(Mouse);
 
+    glutTimerFunc(1000 / 60, AnimBackground, 0);
     glutTimerFunc(1000, UpdateGameTime, 0);
     glutTimerFunc(0, HandlePlayerMovement, 0);
 
-    glutInitDisplayMode(GLUT_SINGLE | GLUT_RGB);
-    glClearColor(0, 0, 0, 0);
     gluOrtho2D(0, 800, 0, 800);
 
     glEnable(GL_BLEND);
@@ -117,34 +126,38 @@ void main(int argc, char** argr) {
     // Initialize rings
     rings = new Ring[numberOfRings];
     for (int i = 0; i < numberOfRings; i++) {
-        rings[i].x = randomRange(boundaryX + 50, boundaryH + 30);
-        rings[i].y = randomRange(boundaryX + 50, boundaryH + 30);
+        std::pair<int, int> position = randomRange(boundaryX + 50, boundaryH + 30);
+        rings[i].x = position.first;
+        rings[i].y = position.second;
     }
 
     // Initialize obstacles
     obstacles = new Obstacle[numberOfObstacles];
     for (int i = 0; i < numberOfObstacles; i++) {
-        obstacles[i].x = randomRange(boundaryX + 70, boundaryH + 0);
-        obstacles[i].y = randomRange(boundaryX + 70, boundaryH + 0);
+        std::pair<int, int> position = randomRange(boundaryX + 70, boundaryH + 0);
+        obstacles[i].x = position.first;
+        obstacles[i].y = position.second;
     }
 
     // Initialize speed powerups
     speedPowerups = new SpeedPowerup[numberOfSpeedPowerups];
     for (int i = 0; i < numberOfSpeedPowerups; i++) {
-        speedPowerups[i].x = randomRange(boundaryX + 70, boundaryH + 0);
-        speedPowerups[i].y = randomRange(boundaryX + 70, boundaryH + 0);
+        std::pair<int, int> position = randomRange(boundaryX + 70, boundaryH + 0);
+        speedPowerups[i].x = position.first;
+        speedPowerups[i].y = position.second;
     }
 
     // Initialize score powerups
     scorePowerups = new ScorePowerup[numberOfScorePowerups];
     for (int i = 0; i < numberOfScorePowerups; i++) {
-        scorePowerups[i].x = randomRange(boundaryX + 70, boundaryH + 0);
-        scorePowerups[i].y = randomRange(boundaryX + 70, boundaryH + 0);
+        std::pair<int, int> position = randomRange(boundaryX + 70, boundaryH + 0);
+        scorePowerups[i].x = position.first;
+        scorePowerups[i].y = position.second;
     }
 
     // Initialize goal
-    goalX = randomRange(boundaryX + 70, boundaryY + 0);
-    goalY = randomRange(boundaryX + 70, boundaryY + 0);
+    goalX = (boundaryX + 70);
+    goalY = (boundaryY + 70);
 
     // Initialize player
     playerX = 400;
@@ -155,8 +168,35 @@ void main(int argc, char** argr) {
     glutMainLoop();
 }
 
-int randomRange(int min, int max) {
-    return min + rand() % (max - min + 1);
+std::pair<int, int> randomRange(int min, int max) {
+    int x, y;
+    int emptySpaceAroundEachPosition = STANDARD_RADIUS + 40;
+    bool isTooClose;
+
+    do {
+        x = min + rand() % (max - min + 1);
+        y = min + rand() % (max - min + 1);
+        isTooClose = false;
+        // check if the new position is too close to any of the used positions
+        for (const auto& usedPos : usedPositions) 
+            if (abs(x - usedPos.first) < emptySpaceAroundEachPosition && abs(y - usedPos.second) < emptySpaceAroundEachPosition) {
+                isTooClose = true;
+                break;
+            }
+    } while (
+        isTooClose // don't place too close to another used position
+            ||
+        usedPositions.find(std::make_pair(x, y)) != usedPositions.end() // don't place in the same position as another used position
+            ||
+        (x > 400 - emptySpaceAroundEachPosition && x < 400 + emptySpaceAroundEachPosition &&
+         y > 400 - emptySpaceAroundEachPosition && y < 400 + emptySpaceAroundEachPosition) // don't place in middle of screen (as it's where the player spawns)
+            ||
+        (x > boundaryX + 70 - emptySpaceAroundEachPosition && x < boundaryX + 70 + emptySpaceAroundEachPosition &&
+         y > boundaryY + 70 - emptySpaceAroundEachPosition && y < boundaryY + 70 + emptySpaceAroundEachPosition) // don't place in the left corner of the screen (as it's where the goal spawns)
+        );
+
+    usedPositions.insert(std::make_pair(x, y));
+    return std::make_pair(x, y);
 }
 void drawRect(int x, int y, int w, int h) {
     glBegin(GL_POLYGON);
@@ -192,31 +232,30 @@ void drawSpeedPowerup(int x, int y, float scaleFactor) {
     glTranslatef(x, y, 0);
     glScalef(scaleFactor, scaleFactor, 1);
 
-    glColor3f(0.678, 0.847, 0.902); // Light blue
+    glColor3f(1.0, 1.0f, 0.0); // Yellow
 
-    glBegin(GL_LINES);
-    glVertex2f(0.0, 1.0);
-    glVertex2f(0.58779, -0.80902);
+    glBegin(GL_POLYGON);
+    glVertex2f(-0.5, 1.0);
+    glVertex2f(0.5, 1.0);
+    glVertex2f(0.0, 0.5);
     glEnd();
 
-    glBegin(GL_LINES);
-    glVertex2f(0.58779, -0.80902);
-    glVertex2f(-0.95106, 0.30902);
+    glBegin(GL_POLYGON);
+    glVertex2f(-0.5, 1.0);
+    glVertex2f(0.0, 0.5);
+    glVertex2f(-0.5, 0.0);
     glEnd();
 
-    glBegin(GL_LINES);
-    glVertex2f(-0.95106, 0.30902);
-    glVertex2f(0.95106, 0.30902);
+    glBegin(GL_POLYGON);
+    glVertex2f(0.5, 1.0);
+    glVertex2f(0.5, 0.0);
+    glVertex2f(0.0, 0.5);
     glEnd();
 
-    glBegin(GL_LINES);
-    glVertex2f(0.95106, 0.30902);
-    glVertex2f(-0.58779, -0.80902);
-    glEnd();
-
-    glBegin(GL_LINES);
-    glVertex2f(-0.58779, -0.80902);
-    glVertex2f(0.0, 1.0);
+    glBegin(GL_POLYGON);
+    glVertex2f(-0.5, 0.0);
+    glVertex2f(0.5, 0.0);
+    glVertex2f(0.0, -1.0);
     glEnd();
 
     glPopMatrix();
@@ -226,7 +265,7 @@ void drawScorePowerup(int x, int y, float scaleFactor) {
     glTranslatef(x, y, 0);
     glScalef(scaleFactor, scaleFactor, 1);
 
-    glColor3f(1.0f, 0.0f, 0.0f); // Red
+    glColor3f(1,0,0); // Red
 
     glBegin(GL_LINES);
     glVertex2f(0.0, 1.0);
@@ -375,12 +414,19 @@ void KeyUp(unsigned char key, int x, int y) {
     keys[key] = false;
 }
 void Mouse(int button, int state, int x, int y) {
-    
-    glutPostRedisplay();
+    // glutPostRedisplay();
 }
 void UpdateGameTime(int value) {
+    if (isGameOver) {
+        return;
+    }
+
     if (remainingTime <= 0) {
-        exit(0);
+        glutKeyboardFunc(NULL);
+        glutKeyboardUpFunc(NULL);
+        glutMouseFunc(NULL);
+        glutDisplayFunc(DisplayLosingScreen);
+        return;
     }
 
     remainingTime--;
@@ -390,6 +436,10 @@ void UpdateGameTime(int value) {
     glutTimerFunc(1000, UpdateGameTime, value);
 }
 void HandlePlayerMovement(int value) {
+    if (isGameOver) {
+        return;
+    }
+
     int oldPlayerX = playerX;
     int oldPlayerY = playerY;
 
@@ -408,6 +458,16 @@ void HandlePlayerMovement(int value) {
     if (keys['d'] || keys['D']) {
         playerX += isSpeedBoostActive ? 2 * playerSpeed : playerSpeed;
         playerAngle = 270;
+    }
+
+    // Check for collision with goal
+    if (checkCollision(playerX, playerY, STANDARD_RADIUS, goalX, goalY, STANDARD_RADIUS)) {
+        isGameOver = true;
+        
+        glutKeyboardFunc(NULL);
+        glutKeyboardUpFunc(NULL);
+        glutMouseFunc(NULL);
+        glutDisplayFunc(DisplayWinningScreen);
     }
 
     // Check for collision with rings
@@ -473,15 +533,25 @@ void HandlePlayerMovement(int value) {
         playerY = oldPlayerY;
     }
 
+    // Check if the player is out of lives
+    if (remainingLives <= 0) {
+        isGameOver = true;
+
+        glutKeyboardFunc(NULL);
+        glutKeyboardUpFunc(NULL);
+        glutMouseFunc(NULL);
+        glutDisplayFunc(DisplayLosingScreen);
+    }
+
     glutPostRedisplay();
 
     // Handle player movement once every 1/240 seconds, or 240 times per second. (240 FPS)
     glutTimerFunc(1000 / 240, HandlePlayerMovement, value + 1); 
 }
 bool checkCollision(int x1, int y1, int r1, int x2, int y2, int r2) {
-    int dx = x2 - x1;
-    int dy = y2 - y1;
-    int distance = sqrt(dx * dx + dy * dy);
+    double dx = x2 - x1;
+    double dy = y2 - y1;
+    double distance = sqrt(dx * dx + dy * dy);
     return distance < r1 + r2;
 }
 void EndInvincibility(int value) {
@@ -493,8 +563,50 @@ void EndSpeedBoost(int value) {
 void EndScoreBoost(int value) {
     isScoreBoostActive = false;
 }
+void DisplayWinningScreen() {
+    glClear(GL_COLOR_BUFFER_BIT);
+
+    glClearColor(0.0f, 0.5f, 0.0f, 1.0f);
+
+    glColor3f(0, 1, 0);
+    glPointSize(70.0);
+
+    glRasterPos2i(350, 400);
+    std::string winningText = "You win!";
+    for (char c : winningText) {
+        glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18, c);
+    }
+
+    glFlush();
+}
+void DisplayLosingScreen() {
+    glClear(GL_COLOR_BUFFER_BIT);
+
+    glClearColor(0.5f, 0.0f, 0.0f, 1.0f);
+
+    glColor3f(1, 0, 0);
+    glPointSize(70.0);
+
+    glRasterPos2i(350, 400);
+    std::string winningText = "You lose :(";
+    for (char c : winningText) {
+        glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18, c);
+    }
+
+    glFlush();
+}
+void AnimBackground(int value) {
+    backgroundAnimState += 0.01f;
+    glutPostRedisplay();
+    glutTimerFunc(1000 / 60, AnimBackground, 0);
+}
 void Display() {
     glClear(GL_COLOR_BUFFER_BIT);
+
+    // Background (animated with shades of dark blue to black)
+    float black = 0.1f * (sin(backgroundAnimState) + 1.0f);
+    glClearColor(black, black, black, 1.0f);
+
     // Timer
     glColor3f(1, 1, 1);
     glRasterPos2i(650, 770);
@@ -506,7 +618,14 @@ void Display() {
     }
 
     // Score
-    glColor3f(1, 1, 1);
+    if (isScoreBoostActive) {
+        glColor3f(1, 0, 0); // Red
+        glRasterPos2i(370, 770);
+        for (char c : "2X") {
+            glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18, c);
+        }
+    }
+    glColor3f(1, 1, 1); // White
     glRasterPos2i(410, 770);
     std::ostringstream ossScore;
     ossScore << score;
