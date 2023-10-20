@@ -9,6 +9,8 @@
 std::pair<int, int> randomRange(int min, int max);
 void drawRect(int x, int y, int w, int h);
 void drawCircle(int x, int y, float r);
+void drawTime();
+void drawScore();
 void drawHealthBar(int lives);
 void drawSpeedPowerup(int x, int y, float scaleFactor);
 void drawScorePowerup(int x, int y, float scaleFactor);
@@ -27,8 +29,6 @@ bool checkCollision(int x1, int y1, int r1, int x2, int y2, int r2);
 void EndInvincibility(int value);
 void EndSpeedBoost(int value);
 void EndScoreBoost(int value);
-void drawTime();
-void drawScore();
 void DisplayWinningScreen();
 void DisplayLosingScreen();
 void Display();
@@ -168,7 +168,6 @@ void main(int argc, char** argr) {
 
     glutMainLoop();
 }
-
 std::pair<int, int> randomRange(int min, int max) {
     int x, y;
     int emptySpaceAroundEachPosition = STANDARD_RADIUS + 40;
@@ -214,6 +213,33 @@ void drawCircle(int x, int y, float r) {
     GLUquadric* quadObj = gluNewQuadric();
     gluDisk(quadObj, 0, r, 50, 50);
     glPopMatrix();
+}
+void drawTime() {
+    glColor3f(1, 1, 1);
+    glRasterPos2i(650, 770);
+    std::ostringstream oss;
+    oss << remainingTime;
+    std::string timeString = "Time: " + oss.str();
+    for (char c : timeString) {
+        glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18, c);
+    }
+}
+void drawScore() {
+    if (isScoreBoostActive) {
+        glColor3f(1, 0, 0); // Red
+        glRasterPos2i(370, 770);
+        for (char c : "2X") {
+            glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18, c);
+        }
+    }
+    glColor3f(1, 1, 1); // White
+    glRasterPos2i(410, 770);
+    std::ostringstream ossScore;
+    ossScore << score;
+    std::string scoreString = "Score: " + ossScore.str();
+    for (char c : scoreString) {
+        glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18, c);
+    }
 }
 void drawHealthBar(int lives) {
     int startX = 50;
@@ -601,37 +627,10 @@ void AnimBackground(int value) {
     glutPostRedisplay();
     glutTimerFunc(1000 / 60, AnimBackground, 0);
 }
-void drawTime() {
-    glColor3f(1, 1, 1);
-    glRasterPos2i(650, 770);
-    std::ostringstream oss;
-    oss << remainingTime;
-    std::string timeString = "Time: " + oss.str();
-    for (char c : timeString) {
-        glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18, c);
-    }
-}
-void drawScore() {
-    if (isScoreBoostActive) {
-        glColor3f(1, 0, 0); // Red
-        glRasterPos2i(370, 770);
-        for (char c : "2X") {
-            glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18, c);
-        }
-    }
-    glColor3f(1, 1, 1); // White
-    glRasterPos2i(410, 770);
-    std::ostringstream ossScore;
-    ossScore << score;
-    std::string scoreString = "Score: " + ossScore.str();
-    for (char c : scoreString) {
-        glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18, c);
-    }
-}
 void Display() {
     glClear(GL_COLOR_BUFFER_BIT);
 
-    // Background (animated with shades of dark blue to black)
+    // Animate background color with shades of dark blue to black
     float black = 0.1f * (sin(backgroundAnimState) + 1.0f);
     glClearColor(black, black, black, 1.0f);
 
