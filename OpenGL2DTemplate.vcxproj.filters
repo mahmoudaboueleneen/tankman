@@ -18,7 +18,7 @@
     <None Include="ReadMe.txt" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="OpenGL2DTemplate.cpp">
+    <ClCompile Include="P20-52-5514.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

@@ -5,16 +5,17 @@
 #pragma comment(lib, "glew32.lib")
 #pragma comment(lib, "glaux.lib")
 
-void loadPPM(GLuint *textureID, char *strFileName, int width, int height, int wrap) {
-	BYTE *data;
-	FILE *pFile;
+void loadPPM(GLuint* textureID, char* strFileName, int width, int height, int wrap) {
+	BYTE* data = nullptr;
+	FILE* pFile = nullptr;
 
-	fopen_s(&pFile, strFileName, "r");
-	if (pFile) {
+	errno_t err = fopen_s(&pFile, strFileName, "rb");
+	if (err == 0 && pFile) {
 		data = (BYTE*)malloc(width * height * 3);
-		fread(data, 1, width * height * 3, pFile);
+		fread_s(data, width * height * 3, width * height * 3, 1, pFile);
 		fclose(pFile);
-	} else {
+	}
+	else {
 		MessageBoxA(NULL, "Texture file not found!", "Error!", MB_OK);
 		exit(EXIT_FAILURE);
 	}
@@ -31,12 +32,12 @@ void loadPPM(GLuint *textureID, char *strFileName, int width, int height, int wr
 	free(data);
 }
 
-void loadBMP(GLuint *textureID, char *strFileName, int wrap) {
-	AUX_RGBImageRec *pBitmap = NULL;
-	FILE *pFile = NULL;
+void loadBMP(GLuint* textureID, char* strFileName, int wrap) {
+	AUX_RGBImageRec* pBitmap = nullptr;
+	FILE* pFile = nullptr;
 
-	fopen_s(&pFile, strFileName, "r");
-	if (pFile) {
+	errno_t err = fopen_s(&pFile, strFileName, "rb");
+	if (err == 0 && pFile) {
 		pBitmap = auxDIBImageLoadA(strFileName);
 	}
 	else {
@@ -59,3 +60,4 @@ void loadBMP(GLuint *textureID, char *strFileName, int wrap) {
 		free(pBitmap);
 	}
 }
+

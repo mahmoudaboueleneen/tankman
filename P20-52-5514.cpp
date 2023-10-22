@@ -327,7 +327,7 @@ void drawRing(int x, int y, float innerR, float outerR) {
     glColor3f(1.0f, 0.843137f, 0.0f); // Gold
     GLUquadric* quadObj = gluNewQuadric();
     gluDisk(quadObj, 0, outerR, 50, 50);
-    glColor3f(0,0,0); // Black
+    glColor4f(0,0,0,1); // Black
     gluDisk(quadObj, 0, innerR, 50, 50);
     glPopMatrix();
 }
@@ -634,42 +634,24 @@ void Display() {
     float black = 0.1f * (sin(backgroundAnimState) + 1.0f);
     glClearColor(black, black, black, 1.0f);
 
-    // Time
     drawTime();
-
-    // Score
     drawScore();
-
-    // Health Bar
     drawHealthBar(remainingLives);
-
-    // Boundary
     drawBoundary(boundaryX, boundaryY, boundaryW, boundaryW);
 
-    // Rings
-    for (int i = 0; i < numberOfRings; i++) {
+    for (int i = 0; i < numberOfRings; i++)
         drawRing(rings[i].x, rings[i].y, STANDARD_RADIUS/2, STANDARD_RADIUS);
-    }
 
-    // Obstacles
-    for (int i = 0; i < numberOfObstacles; i++) {
+    for (int i = 0; i < numberOfObstacles; i++)
         drawObstacle(obstacles[i].x, obstacles[i].y);
-    }
 
-    // Speed Powerups
-    for (int i = 0; i < numberOfSpeedPowerups; i++) {
+    for (int i = 0; i < numberOfSpeedPowerups; i++)
         drawSpeedPowerup(speedPowerups[i].x, speedPowerups[i].y, STANDARD_RADIUS);
-    }
 
-    // Score Powerups
-    for (int i = 0; i < numberOfScorePowerups; i++) {
+    for (int i = 0; i < numberOfScorePowerups; i++)
         drawScorePowerup(scorePowerups[i].x, scorePowerups[i].y, STANDARD_RADIUS);
-    }
 
-    // Goal
     drawGoal(goalX, goalY, STANDARD_RADIUS);
-
-    // Player
     drawPlayer(playerX, playerY, playerAngle);
 
     glFlush();
