@@ -96,7 +96,7 @@ void main(int argc, char** argr) {
     glutDisplayFunc(Display);
     glutKeyboardFunc(Key);
     glutKeyboardUpFunc(KeyUp);
-    glutMouseFunc(Mouse);
+    //glutMouseFunc(Mouse);
 
     glutTimerFunc(1000 / 60, AnimBackground, 0);
     glutTimerFunc(1000, UpdateGameTime, 0);
